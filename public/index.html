@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Envoyer un colis</title>
+<style>body{font:15px system-ui,sans-serif;max-width:560px;margin:0 auto;padding:16px;background:#f6f7f9;color:#1a1d23}
+.c{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:14px;margin-bottom:12px}
+input{width:100%;padding:9px;margin:3px 0 8px;border:1px solid #ccd;border-radius:8px;font:inherit;box-sizing:border-box}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}button{padding:10px 14px;border:0;border-radius:8px;background:#1d4ed8;color:#fff;font:inherit;cursor:pointer}
+img{max-width:100%;border-radius:8px}.h{display:none}label{font-size:12px;color:#667}</style></head><body>
+<h2>📦 Envoyer un colis</h2>
+<div class="c"><b>1. Photo de l'objet</b><input type="file" id="ph" accept="image/*"><img id="pv" class="h">
+<button id="es" class="h">Estimer les dimensions</button><p id="ed" style="color:#667"></p></div>
+<div class="c"><b>2. Trajet et colisage (vérifiez les mesures)</b><div class="g">
+<div><label>CP départ</label><input id="fp" value="35000"></div><div><label>Ville départ</label><input id="fc" value="Rennes"></div>
+<div><label>CP arrivée</label><input id="tp" value="31000"></div><div><label>Ville arrivée</label><input id="tc" value="Toulouse"></div>
+<div><label>Longueur cm</label><input id="l" type="number"></div><div><label>Largeur cm</label><input id="w" type="number"></div>
+<div><label>Hauteur cm</label><input id="h" type="number"></div><div><label>Poids kg</label><input id="k" type="number"></div></div>
+<button id="qt">Obtenir mon prix</button><p id="qr"></p></div>
+<div class="c h" id="ac"><b>3. Confirmer</b>
+<input id="nm" placeholder="Nom"><input id="em" placeholder="Email"><input id="ph2" placeholder="Téléphone">
+<input id="fa" placeholder="Adresse d'enlèvement complète"><input id="ta" placeholder="Adresse de livraison complète">
+<input id="rn" placeholder="Nom du destinataire"><input id="rp" placeholder="Téléphone du destinataire">
+<label>Date d'enlèvement souhaitée</label><input id="pd" type="date"><button id="ok">Accepter le devis</button><p id="ar"></p></div>
+<script>
+var $=function(i){return document.getElementById(i)},Q=null,IMG=null,MT=null;
+function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()})}
+$("ph").onchange=function(e){var f=e.target.files[0];if(!f)return;MT=f.type;var r=new FileReader();r.onload=function(){$("pv").src=r.result;$("pv").classList.remove("h");$("es").classList.remove("h");IMG=r.result.split(",")[1]};r.readAsDataURL(f)};
+$("es").onclick=function(){$("ed").textContent="Analyse…";post("/api/estimate",{image:IMG,mediaType:MT}).then(function(j){
+if(j.error){$("ed").textContent=j.error;return}$("l").value=j.length;$("w").value=j.width;$("h").value=j.height;$("k").value=j.weight;$("ed").textContent="Estimation : "+j.description+" — corrigez si besoin."})};
+$("qt").onclick=function(){$("qr").textContent="Calcul…";post("/api/quote",{from:{postal:$("fp").value,city:$("fc").value,country:"FR"},to:{postal:$("tp").value,city:$("tc").value,country:"FR"},
+parcels:[{length:+$("l").value,width:+$("w").value,height:+$("h").value,weight:+$("k").value}]}).then(function(j){
+if(j.error){$("qr").textContent=j.error;return}if(j.manual){$("qr").textContent=j.message;return}
+Q=j.id;$("qr").innerHTML="<b>"+j.priceHT.toFixed(2)+" € HT</b> ("+j.priceTTC.toFixed(2)+" € TTC)"+(j.days?" · ~"+j.days+" j":"");$("ac").classList.remove("h")})};
+$("ok").onclick=function(){post("/api/quote/"+Q+"/accept",{contact:{name:$("nm").value,email:$("em").value,phone:$("ph2").value},fromAddress:$("fa").value,toAddress:$("ta").value,pickupDate:$("pd").value,recipient:{name:$("rn").value,phone:$("rp").value}}).then(function(j){
+$("ar").innerHTML=j.error?j.error:"✅ Confirmé. Réf <b>"+j.ref+"</b><br>Enlèvement : "+j.pickup.date+", "+j.pickup.window})};
+</script></body></html>
